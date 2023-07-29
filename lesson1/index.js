@@ -11,11 +11,18 @@ const server = new ApolloServer({
   typeDefs, // -- definitions of types of data
   resolvers: {
     Query: {
-      games: (params) => {
-        return db.games;
+      games: () => db.games,
+      game: (_, args) => {
+        return db.games.find((game) => game.id === args.id);
       },
       reviews: () => db.reviews,
+      review: (_, args) => {
+        return db.reviews.find((review) => review.id === args.id);
+      },
       authors: () => db.authors,
+      author: (_, args) => {
+        return db.authors.find((author) => author.id === args.id);
+      },
     },
   },
 });
