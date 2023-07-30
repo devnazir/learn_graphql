@@ -57,6 +57,20 @@ const server = new ApolloServer({
 
         db.games.push(newGame);
         return newGame;
+      },
+      updateGame: (_, args) => { 
+        db.games = db.games.map(game => {
+          if(game.id === args.id) { 
+            return {
+              ...game,
+              ...args.game
+            }
+          }
+
+          return game;
+        })
+
+        return db.games.find(game => game.id === args.id);
       }
     },
   },
