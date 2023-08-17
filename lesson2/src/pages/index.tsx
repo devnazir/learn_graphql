@@ -75,6 +75,8 @@ const notifyMe = (message: string) => {
 
 export default function Home() {
   const [subscribe, setSubscribe] = useState(false);
+  const [withRefetchGames, setWithRefetchGames] = useState(false);
+  const [withPooling, setWithPooling] = useState(false);
 
   const { data: gameSubscriptionsData } = useSubscription(GAME_SUBSCRIPTIONS, {
     skip: !subscribe,
@@ -82,6 +84,11 @@ export default function Home() {
 
   const { data, loading, refetch, networkStatus } = useQuery(GET_GAME, {
     notifyOnNetworkStatusChange: true,
+    ...(withPooling
+      ? { pollInterval: 1000 }
+      : {
+          pollInterval: 0,
+        }),
   });
 
   const [deleteGame, { loading: deleteGameLoading }] = useMutation(
@@ -92,31 +99,35 @@ export default function Home() {
   );
 
   const [addGame] = useMutation(ADD_GAME, {
-    update: (cache, { data }) => {
-      const addGame = data?.addGame;
+    ...(withRefetchGames
+      ? {
+          update: (cache, { data }) => {
+            const addGame = data?.addGame;
 
-      cache.modify({
-        fields: {
-          games(existingGames = []) {
-            const newGameRef = cache.writeFragment({
-              data: addGame,
-              fragment: gql(`
+            cache.modify({
+              fields: {
+                games(existingGames = []) {
+                  const newGameRef = cache.writeFragment({
+                    data: addGame,
+                    fragment: gql(`
                 fragment NewGame on Game {
                   id
                   title
                 }
               `),
-            });
+                  });
 
-            return [...existingGames, newGameRef];
+                  return [...existingGames, newGameRef];
+                },
+              },
+            });
           },
-        },
-      });
-    },
-    refetchQueries: [GET_GAME],
-    onQueryUpdated: (observableQuery) => {
-      observableQuery.refetch();
-    },
+          refetchQueries: [GET_GAME],
+          onQueryUpdated: (observableQuery) => {
+            observableQuery.refetch();
+          },
+        }
+      : {}),
   });
 
   if (loading && networkStatus !== NetworkStatus.refetch) {
@@ -207,8 +218,9 @@ export default function Home() {
   };
 
   return (
-    <div className="bg-gray-100 min-h-screen flex justify-center items-center">
+    <div className="bg-gray-100 min-h-screen flex justify-center items-center flex-col gap-6">
       <div className="bg-white p-8 rounded shadow-md w-full max-w-xl">
+        <h1>Learn GraphQL</h1>
         <form
           method="POST"
           onSubmit={handleSubmit}
@@ -271,12 +283,38 @@ export default function Home() {
         </div>
 
         <div
-          className="bg-yellow-500 text-white rounded py-2 px-4 cursor-pointer text-center"
+          className="bg-yellow-500 text-white rounded py-2 px-4 cursor-pointer text-center mb-4"
           onClick={generateGame}
         >
           Generate Game
         </div>
+
+        <div
+          className="bg-green-500 text-white rounded py-2 px-4 cursor-pointer text-center"
+          onClick={() => setWithRefetchGames(!withRefetchGames)}
+        >
+          {withRefetchGames
+            ? " Without Refetch GET Games"
+            : "With Refetch GET Games"}
+        </div>
+
+        <div
+          className="bg-pink-500 text-white rounded py-2 px-4 cursor-pointer text-center mt-4"
+          onClick={() => setWithPooling(!withPooling)}
+        >
+          {withPooling ? " Without Polling" : "With Polling"}
+        </div>
       </div>
+
+      {subscribe && (
+        <div className="bg-white p-8 rounded shadow-md w-full max-w-xl">
+          {gameSubscriptionsData?.gameAdded?.title && (
+            <div className="bg-green-500 text-white rounded py-2 px-4 cursor-pointer text-center">
+              {gameSubscriptionsData?.gameAdded?.title} is added to the list!
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
