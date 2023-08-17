@@ -1,68 +1,66 @@
+import { gql } from "@/__generated__";
+import { Game, GameInputMutation } from "@/__generated__/graphql";
 import {
   useQuery,
-  gql,
   NetworkStatus,
   useMutation,
   useSubscription,
 } from "@apollo/client";
 import { Spin } from "antd";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
-type Game = {
-  id: string;
-  title: string;
-  platform: string[];
-  reviews: string[];
-};
-
-const GET_GAME = gql`
+const GET_GAME = gql(`
   query GetGames {
     games {
       title
       id
     }
   }
-`;
+`);
 
-const ADD_GAME = gql`
+
+const ADD_GAME = gql(`
   mutation AddGame($game: GameInputMutation) {
     addGame(game: $game) {
       title
       id
     }
   }
-`;
+`);
 
-const DELETE_GAME = gql`
+const DELETE_GAME = gql(`
   mutation DeleteGame($id: ID!) {
     deleteGame(id: $id) {
       title
       id
     }
   }
-`;
+`);
 
-const GAME_SUBSCRIPTIONS = gql`
+const GAME_SUBSCRIPTIONS = gql(`
   subscription GameAdded {
     gameAdded {
-      id
       title
     }
   }
-`;
+`);
+
+type GamePayload = Partial<Pick<Game, "title" | "platforms">>;
+type KeyOfGamePayload = keyof GamePayload;
+type ValueOfGamePayload = GamePayload[KeyOfGamePayload];
 
 const notifyMe = (message: string) => {
   if (!("Notification" in window)) {
     console.log("This browser does not support desktop notification");
   } else if (Notification.permission === "granted") {
-    const notification = new Notification(message);
+    new Notification(message);
   } else if (
     Notification.permission === "denied" ||
     Notification.permission === "default"
   ) {
     Notification.requestPermission().then((permission) => {
       if (permission === "granted") {
-        const notification = new Notification(message);
+        new Notification(message);
       }
     });
   }
@@ -87,18 +85,20 @@ export default function Home() {
   );
 
   const [addGame] = useMutation(ADD_GAME, {
-    update: (cache, { data: { addGame } }) => {
+    update: (cache, { data }) => {
+      const addGame = data?.addGame;
+
       cache.modify({
         fields: {
           games(existingGames = []) {
             const newGameRef = cache.writeFragment({
               data: addGame,
-              fragment: gql`
+              fragment: gql(`
                 fragment NewGame on Game {
                   id
                   title
                 }
-              `,
+              `),
             });
 
             return [...existingGames, newGameRef];
@@ -139,20 +139,25 @@ export default function Home() {
             const form = e.target as HTMLFormElement;
 
             const formData = new FormData(form);
-            let payload: Record<string, string | string[]> = {};
+
+            const payload: GamePayload = {};
 
             formData.forEach((value, key) => {
-              if (key === "platforms") {
-                payload[key] = (value as string).split(",");
-                return;
-              }
+              const keyValue = key as KeyOfGamePayload;
+              const payloadValue = value as ValueOfGamePayload;
 
-              payload[key] = value as string;
+              if (keyValue === "platforms") {
+                payload[keyValue] = (payloadValue as string).split(",");
+              } else {
+                if (typeof payloadValue === "string") {
+                  payload[keyValue] = payloadValue;
+                }
+              }
             });
 
             addGame({
               variables: {
-                game: payload,
+                game: payload as GameInputMutation,
               },
             });
 
