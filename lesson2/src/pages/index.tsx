@@ -18,7 +18,6 @@ const GET_GAME = gql(`
   }
 `);
 
-
 const ADD_GAME = gql(`
   mutation AddGame($game: GameInputMutation) {
     addGame(game: $game) {
@@ -53,14 +52,22 @@ const notifyMe = (message: string) => {
   if (!("Notification" in window)) {
     console.log("This browser does not support desktop notification");
   } else if (Notification.permission === "granted") {
-    new Notification(message);
+    new Notification("There is new Game!", {
+      body: message,
+      icon: "/favicon.ico",
+      vibrate: [200, 100, 200],
+    });
   } else if (
     Notification.permission === "denied" ||
     Notification.permission === "default"
   ) {
     Notification.requestPermission().then((permission) => {
       if (permission === "granted") {
-        new Notification(message);
+        new Notification("There is new Game!", {
+          body: message,
+          icon: "/favicon.ico",
+          vibrate: [200, 100, 200],
+        });
       }
     });
   }
@@ -129,75 +136,147 @@ export default function Home() {
     });
   };
 
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const form = e.target as HTMLFormElement;
+
+    const formData = new FormData(form);
+
+    const payload: GamePayload = {};
+
+    formData.forEach((value, key) => {
+      const keyValue = key as KeyOfGamePayload;
+      const payloadValue = value as ValueOfGamePayload;
+
+      if (keyValue === "platforms") {
+        payload[keyValue] = (payloadValue as string).split(",");
+      } else {
+        if (typeof payloadValue === "string") {
+          payload[keyValue] = payloadValue;
+        }
+      }
+    });
+
+    const isGameAlreadyExist = games.some(
+      (game) => game.title?.toLowerCase() === payload.title?.toLowerCase()
+    );
+
+    if (isGameAlreadyExist) {
+      return;
+    }
+
+    handleAddGame(payload as GameInputMutation);
+  };
+
+  const handleAddGame = (payload: GameInputMutation) => {
+    addGame({
+      variables: {
+        game: payload as GameInputMutation,
+      },
+    });
+
+    if (subscribe) {
+      notifyMe(`
+        ${payload.title} is added to the list! 
+      `);
+    }
+  };
+
+  const generateGame = () => {
+    const title =
+      "Game " +
+      Math.random().toString(36).substring(7) +
+      Math.random().toString(36).substring(7);
+
+    const platforms = ["PC", "PS4", "XBOX"];
+
+    const payload: GamePayload = {
+      title,
+      platforms,
+    };
+
+    const isGameAlreadyExist = games.some(
+      (game) => game.title?.toLowerCase() === payload.title?.toLowerCase()
+    );
+
+    if (isGameAlreadyExist) {
+      return;
+    }
+
+    handleAddGame(payload as GameInputMutation);
+  };
+
   return (
-    <div className="flex flex-col gap-4 p-4">
-      <div className="mb-6">
+    <div className="bg-gray-100 min-h-screen flex justify-center items-center">
+      <div className="bg-white p-8 rounded shadow-md w-full max-w-xl">
         <form
           method="POST"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const form = e.target as HTMLFormElement;
-
-            const formData = new FormData(form);
-
-            const payload: GamePayload = {};
-
-            formData.forEach((value, key) => {
-              const keyValue = key as KeyOfGamePayload;
-              const payloadValue = value as ValueOfGamePayload;
-
-              if (keyValue === "platforms") {
-                payload[keyValue] = (payloadValue as string).split(",");
-              } else {
-                if (typeof payloadValue === "string") {
-                  payload[keyValue] = payloadValue;
-                }
-              }
-            });
-
-            addGame({
-              variables: {
-                game: payload as GameInputMutation,
-              },
-            });
-
-            if (subscribe) {
-              notifyMe(`
-                new game added!, ${payload.title} with platforms ${payload.platforms}
-              `);
-            }
-          }}
-          className="flex gap-4"
+          onSubmit={handleSubmit}
+          className="flex  gap-4 mb-4"
         >
-          <input type="text" name="title" required />
-          <input type="text" name="platforms" required />
-          <button type="submit">Add Game</button>
+          <input type="text" name="title" required placeholder="Title" />
+          <input
+            type="text"
+            name="platforms"
+            required
+            placeholder="Platforms"
+          />
+          <button className="bg-blue-500 text-white rounded py-2 px-4 grow cursor-pointer">
+            Add Game
+          </button>
         </form>
-      </div>
 
-      {games.map((game) => {
-        return (
-          <div key={game.id} className="flex justify-between w-max gap-4">
-            <span>{game.title}</span>
-            <button
-              disabled={deleteGameLoading}
-              onClick={() => deleteGameHandler(game.id)}
+        <div className="max-h-[500px] overflow-y-auto">
+          {games.map((game, index) => (
+            <div
+              key={game.id + index}
+              className="bg-gray-200 p-4 rounded flex justify-between items-center mb-2"
             >
-              Delete
-            </button>
-          </div>
-        );
-      })}
+              <span>{game.title}</span>
+              <button
+                className="bg-red-500 text-white rounded py-1 px-2 cursor-pointer"
+                disabled={deleteGameLoading}
+                onClick={() => deleteGameHandler(game.id)}
+              >
+                Delete
+              </button>
+            </div>
+          ))}
 
-      {networkStatus === NetworkStatus.refetch && <p>Refetching...</p>}
+          {games.length === 0 && (
+            <div className="bg-gray-200 p-4 rounded flex justify-between items-center mb-2">
+              <span>No games found</span>
+            </div>
+          )}
+        </div>
 
-      <button className="w-max" onClick={() => refetch()}>
-        Refetch
-      </button>
+        {networkStatus === NetworkStatus.refetch && <p>Refetching...</p>}
 
-      <button onClick={() => setSubscribe(!subscribe)}>
-        {subscribe ? "Unsubscribe" : "Subscribe"}
-      </button>
+        <div className="flex h-max gap-4 my-4">
+          <button
+            className="bg-blue-500 text-white rounded py-2 px-4 w-max cursor-pointer flex-1"
+            onClick={() => refetch()}
+          >
+            Refetch
+          </button>
+
+          <button
+            className={`${
+              subscribe ? "bg-green-500" : "bg-gray-500"
+            } text-white rounded py-2 px-4 cursor-pointer flex-1`}
+            onClick={() => setSubscribe(!subscribe)}
+          >
+            {subscribe ? "Unsubscribe" : "Subscribe"}
+          </button>
+        </div>
+
+        <div
+          className="bg-yellow-500 text-white rounded py-2 px-4 cursor-pointer text-center"
+          onClick={generateGame}
+        >
+          Generate Game
+        </div>
+      </div>
     </div>
   );
 }
