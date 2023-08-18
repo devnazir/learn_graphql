@@ -104,6 +104,8 @@ export type Subscription = {
   gameAdded?: Maybe<Game>;
 };
 
+export type ReviewsGameFragment = { __typename?: 'Game', reviews?: Array<{ __typename?: 'Review', id: string, content: string }> | null } & { ' $fragmentName'?: 'ReviewsGameFragment' };
+
 export type GetGamesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
@@ -111,8 +113,6 @@ export type GetGamesQuery = { __typename?: 'Query', games?: Array<(
     { __typename?: 'Game', title?: string | null, id: string }
     & { ' $fragmentRefs'?: { 'ReviewsGameFragment': ReviewsGameFragment } }
   ) | null> | null };
-
-export type ReviewsGameFragment = { __typename?: 'Game', reviews?: Array<{ __typename?: 'Review', id: string, content: string }> | null } & { ' $fragmentName'?: 'ReviewsGameFragment' };
 
 export type AddGameMutationVariables = Exact<{
   game?: InputMaybe<GameInputMutation>;

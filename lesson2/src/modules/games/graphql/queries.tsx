@@ -10,15 +10,6 @@ export const GET_GAME = gql(`
   }
 `);
 
-export const ReviewsGameFragment = gql(`
-  fragment ReviewsGame on Game {
-    reviews {
-      id
-      content
-    }
-  }
-`);
-
 export const ADD_GAME = gql(`
   mutation AddGame($game: GameInputMutation) {
     addGame(game: $game) {

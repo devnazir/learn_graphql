@@ -1,9 +1,28 @@
+import { gql } from "@/__generated__";
 import { Game } from "@/__generated__/graphql";
+import { useFragment } from "@apollo/client";
 
 import useDeleteGameMutation from "../../hooks/mutations/useDeleteGameMutation";
 
+export const ReviewsGameFragment = gql(`
+  fragment ReviewsGame on Game {
+    reviews {
+      id
+      content
+    }
+  }
+`);
+
 const GameItem = (game: Game) => {
   const [deleteGame, { loading: deleteGameLoading }] = useDeleteGameMutation();
+
+  const fragmentData = useFragment({
+    fragment: ReviewsGameFragment,
+    fragmentName: "ReviewsGame",
+    from: game,
+  });
+
+  console.log(fragmentData);
 
   const deleteGameHandler = (gameId: string) => {
     deleteGame({
