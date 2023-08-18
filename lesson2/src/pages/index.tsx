@@ -1,134 +1,30 @@
-import { gql } from "@/__generated__";
-import { Game, GameInputMutation } from "@/__generated__/graphql";
 import {
-  useQuery,
-  NetworkStatus,
-  useMutation,
-  useSubscription,
-} from "@apollo/client";
+  subscribeToGameAddedAtom,
+  withPoolingAtom,
+  withRefetchGamesAtom,
+} from "@/modules/games/atoms";
+import AddGameForm from "@/modules/games/components/AddGameForm";
+import GameItem from "@/modules/games/components/GameItem";
+import useAddGameMutation from "@/modules/games/hooks/mutations/useAddGameMutation";
+import useGamesQueries from "@/modules/games/hooks/queries/useGamesQueries";
+import useGamesSubscriptions from "@/modules/games/hooks/subscriptions/useGamesSubscriptions";
+import { notifyMe } from "@/modules/games/utils";
+
+import { Game, GameInputMutation } from "@/__generated__/graphql";
+import { NetworkStatus } from "@apollo/client";
 import { Spin } from "antd";
-import { useState } from "react";
-
-const GET_GAME = gql(`
-  query GetGames {
-    games {
-      title
-      id
-    }
-  }
-`);
-
-const ADD_GAME = gql(`
-  mutation AddGame($game: GameInputMutation) {
-    addGame(game: $game) {
-      title
-      id
-    }
-  }
-`);
-
-const DELETE_GAME = gql(`
-  mutation DeleteGame($id: ID!) {
-    deleteGame(id: $id) {
-      title
-      id
-    }
-  }
-`);
-
-const GAME_SUBSCRIPTIONS = gql(`
-  subscription GameAdded {
-    gameAdded {
-      title
-    }
-  }
-`);
+import { useAtom } from "jotai";
 
 type GamePayload = Partial<Pick<Game, "title" | "platforms">>;
-type KeyOfGamePayload = keyof GamePayload;
-type ValueOfGamePayload = GamePayload[KeyOfGamePayload];
-
-const notifyMe = (message: string) => {
-  if (!("Notification" in window)) {
-    console.log("This browser does not support desktop notification");
-  } else if (Notification.permission === "granted") {
-    new Notification("There is new Game!", {
-      body: message,
-      icon: "/favicon.ico",
-      vibrate: [200, 100, 200],
-    });
-  } else if (
-    Notification.permission === "denied" ||
-    Notification.permission === "default"
-  ) {
-    Notification.requestPermission().then((permission) => {
-      if (permission === "granted") {
-        new Notification("There is new Game!", {
-          body: message,
-          icon: "/favicon.ico",
-          vibrate: [200, 100, 200],
-        });
-      }
-    });
-  }
-};
 
 export default function Home() {
-  const [subscribe, setSubscribe] = useState(false);
-  const [withRefetchGames, setWithRefetchGames] = useState(false);
-  const [withPooling, setWithPooling] = useState(false);
+  const [subscribe, setSubscribe] = useAtom(subscribeToGameAddedAtom);
+  const [withRefetchGames, setWithRefetchGames] = useAtom(withRefetchGamesAtom);
+  const [withPooling, setWithPooling] = useAtom(withPoolingAtom);
 
-  const { data: gameSubscriptionsData } = useSubscription(GAME_SUBSCRIPTIONS, {
-    skip: !subscribe,
-  });
-
-  const { data, loading, refetch, networkStatus } = useQuery(GET_GAME, {
-    notifyOnNetworkStatusChange: true,
-    ...(withPooling
-      ? { pollInterval: 1000 }
-      : {
-          pollInterval: 0,
-        }),
-  });
-
-  const [deleteGame, { loading: deleteGameLoading }] = useMutation(
-    DELETE_GAME,
-    {
-      refetchQueries: [GET_GAME],
-    }
-  );
-
-  const [addGame] = useMutation(ADD_GAME, {
-    ...(withRefetchGames
-      ? {
-          update: (cache, { data }) => {
-            const addGame = data?.addGame;
-
-            cache.modify({
-              fields: {
-                games(existingGames = []) {
-                  const newGameRef = cache.writeFragment({
-                    data: addGame,
-                    fragment: gql(`
-                fragment NewGame on Game {
-                  id
-                  title
-                }
-              `),
-                  });
-
-                  return [...existingGames, newGameRef];
-                },
-              },
-            });
-          },
-          refetchQueries: [GET_GAME],
-          onQueryUpdated: (observableQuery) => {
-            observableQuery.refetch();
-          },
-        }
-      : {}),
-  });
+  const { data: gameSubscriptionsData } = useGamesSubscriptions();
+  const { data, loading, refetch, networkStatus } = useGamesQueries();
+  const [addGame] = useAddGameMutation();
 
   if (loading && networkStatus !== NetworkStatus.refetch) {
     return (
@@ -138,46 +34,6 @@ export default function Home() {
     );
   }
   const games = (data?.games || []) as Game[];
-
-  const deleteGameHandler = (gameId: string) => {
-    deleteGame({
-      variables: {
-        id: gameId,
-      },
-    });
-  };
-
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const form = e.target as HTMLFormElement;
-
-    const formData = new FormData(form);
-
-    const payload: GamePayload = {};
-
-    formData.forEach((value, key) => {
-      const keyValue = key as KeyOfGamePayload;
-      const payloadValue = value as ValueOfGamePayload;
-
-      if (keyValue === "platforms") {
-        payload[keyValue] = (payloadValue as string).split(",");
-      } else {
-        if (typeof payloadValue === "string") {
-          payload[keyValue] = payloadValue;
-        }
-      }
-    });
-
-    const isGameAlreadyExist = games.some(
-      (game) => game.title?.toLowerCase() === payload.title?.toLowerCase()
-    );
-
-    if (isGameAlreadyExist) {
-      return;
-    }
-
-    handleAddGame(payload as GameInputMutation);
-  };
 
   const handleAddGame = (payload: GameInputMutation) => {
     addGame({
@@ -221,38 +77,11 @@ export default function Home() {
     <div className="bg-gray-100 min-h-screen flex justify-center items-center flex-col gap-6">
       <div className="bg-white p-8 rounded shadow-md w-full max-w-xl">
         <h1>Learn GraphQL</h1>
-        <form
-          method="POST"
-          onSubmit={handleSubmit}
-          className="flex  gap-4 mb-4"
-        >
-          <input type="text" name="title" required placeholder="Title" />
-          <input
-            type="text"
-            name="platforms"
-            required
-            placeholder="Platforms"
-          />
-          <button className="bg-blue-500 text-white rounded py-2 px-4 grow cursor-pointer">
-            Add Game
-          </button>
-        </form>
+        <AddGameForm />
 
         <div className="max-h-[500px] overflow-y-auto">
           {games.map((game, index) => (
-            <div
-              key={game.id + index}
-              className="bg-gray-200 p-4 rounded flex justify-between items-center mb-2"
-            >
-              <span>{game.title}</span>
-              <button
-                className="bg-red-500 text-white rounded py-1 px-2 cursor-pointer"
-                disabled={deleteGameLoading}
-                onClick={() => deleteGameHandler(game.id)}
-              >
-                Delete
-              </button>
-            </div>
+            <GameItem {...game} key={game.id + index} />
           ))}
 
           {games.length === 0 && (

@@ -4,6 +4,7 @@ import type { AppProps } from "next/app";
 import {
   ApolloClient,
   ApolloProvider,
+  gql,
   HttpLink,
   InMemoryCache,
   split,
@@ -11,6 +12,7 @@ import {
 import { GraphQLWsLink } from "@apollo/client/link/subscriptions";
 import { createClient } from "graphql-ws";
 import { getMainDefinition } from "@apollo/client/utilities";
+import { createFragmentRegistry } from "@apollo/client/cache";
 
 const httpLink = new HttpLink({
   uri: "http://localhost:4000/graphql",
@@ -33,6 +35,7 @@ const splitLink = split(
   wsLink,
   httpLink
 );
+
 
 const client = new ApolloClient({
   link: splitLink,
