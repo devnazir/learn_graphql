@@ -61,7 +61,7 @@ const resolvers = {
     },
     addGame: (_, args) => {
       const newGame = {
-        id: String(db.games.length + 1),
+        id: Math.floor(Math.random() * 1000),
         title: args.game.title,
         platforms: args.game.platforms,
         reviews: [],
