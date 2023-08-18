@@ -19,7 +19,7 @@ const AddGameForm = () => {
   const handleAddGame = (payload: GameInputMutation) => {
     addGame({
       variables: {
-        game: payload as GameInputMutation,
+        game: payload,
       },
     });
 

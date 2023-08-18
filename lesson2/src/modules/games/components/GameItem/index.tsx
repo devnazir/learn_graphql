@@ -13,7 +13,7 @@ export const ReviewsGameFragment = gql(`
   }
 `);
 
-const GameItem = (game: Game) => {
+const GameItem = (game: Partial<Game>) => {
   const [deleteGame, { loading: deleteGameLoading }] = useDeleteGameMutation();
 
   const fragmentData = useFragment({
@@ -24,7 +24,8 @@ const GameItem = (game: Game) => {
 
   console.log(fragmentData);
 
-  const deleteGameHandler = (gameId: string) => {
+  const deleteGameHandler = (gameId: string | undefined) => {
+    if (!gameId) return;
     deleteGame({
       variables: {
         id: gameId,
@@ -38,7 +39,7 @@ const GameItem = (game: Game) => {
       <button
         className="bg-red-500 text-white rounded py-1 px-2 cursor-pointer"
         disabled={deleteGameLoading}
-        onClick={() => deleteGameHandler(game.id)}
+        onClick={() => deleteGameHandler(game?.id)}
       >
         Delete
       </button>

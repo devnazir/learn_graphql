@@ -33,7 +33,7 @@ export default function Home() {
       </div>
     );
   }
-  const games = (data?.games || []) as Game[];
+  const games = data?.games || [];
 
   const handleAddGame = (payload: GameInputMutation) => {
     addGame({
@@ -63,7 +63,7 @@ export default function Home() {
     };
 
     const isGameAlreadyExist = games.some(
-      (game) => game.title?.toLowerCase() === payload.title?.toLowerCase()
+      (game) => game?.title?.toLowerCase() === payload.title?.toLowerCase()
     );
 
     if (isGameAlreadyExist) {
@@ -81,7 +81,7 @@ export default function Home() {
 
         <div className="max-h-[500px] overflow-y-auto">
           {games.map((game, index) => (
-            <GameItem {...game} key={game.id + index} />
+            <GameItem {...game} key={index} />
           ))}
 
           {games.length === 0 && (
